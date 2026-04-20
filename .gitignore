@@ -7,3 +7,6 @@
 *.pdf
 analysis_files/
 rsconnect/
+data/
+plots/
+tables/

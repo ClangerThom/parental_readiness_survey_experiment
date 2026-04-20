@@ -5,7 +5,7 @@ description: "A commented guide through analysing a survey experiment"
 format: 
   html:
     self-contained: true
-editor: visual
+editor: source
 ---
 
 ```{r setup, include=FALSE}
@@ -30,12 +30,12 @@ options(
 
 This document provides the complete script for the analysis of data collected in the Czech Republic in Autumn last year. It was a survey experiment attempting to measure the normative prerequisites of parenthood in the Czech Republic using a survey experiment. Respondents from an online panel convenience sample were asked to rate parental readiness of couples whose traits we varied randomly. This analysis identifies AMCEs (causal effects of varying the vignette characteristics) and aims to test various hypotheses about interactions between respondent characteristics and vignette components.
 
-Further documentation, the data itself and any outputs of this script such as tables and plots can be acessed from an accompanying Onedrive with the author's permission.
+Further documentation and the data itself can be accessed from the author upon request. Outputs such as tables and plots are written to the `plots/` and `tables/` folders in the project directory.
 
 ## Ideas for future analyses
 
--   Instead of making models for each response variable separately, join them all up into 1 index? The answers are highly correlated anyway, particularly q1 and q2, which use the same scale.
--   Investigate the robustness of including respondents with repeated vignettes. Check whether they are the same respondents who then rated more vignettes or new ones.
+- Instead of making models for each response variable separately, join them all up into 1 index? The answers are highly correlated anyway, particularly q1 and q2, which use the same scale.
+- Investigate the robustness of including respondents with repeated vignettes. Check whether they are the same respondents who then rated more vignettes or new ones.
 
 # Setup
 
@@ -43,7 +43,7 @@ I load the necessary packages for analysis. Mainly tidyverse for overall functio
 
 ```{r libraries}
 #| message: false
-#| warnings: false
+#| warning: false
 
 # core functionality
 library(tidyverse)
@@ -62,10 +62,8 @@ library(broom.helpers)
 library(marginaleffects)
 
 # plotting
-library(scales)
 library(ggforce)
 library(patchwork)
-library(stringr)
 library(extrafont)
 
 # table creation
@@ -77,7 +75,7 @@ Next I set up the plot theme and the recoding scheme to transform Czech value la
 
 ```{r plot-theme}
 #| message: false
-#| warnings: false
+#| warning: false
 #| code-fold: true
 
 # loading fonts
@@ -132,18 +130,17 @@ variable_lookup <- tribble(
   mutate(variable_nice = fct_inorder(variable_nice))
 ```
 
-Finally, I load in raw data from my Onedrive. The file path is managed by the config, add yours in that file.
+Finally, I load in the raw data. The file path is managed by `config.R` — place `original_data.sav` in the `data/` folder.
 
 ```{r data}
 #| message: false
-#| warnings: false
+#| warning: false
 #| code-fold: true
 
-# data and output file paths to my onedrive - change as needed
 source("config.R")
 
 # import data
-parents_raw <- read_sav(paste0(data_path, "/original_data.sav")) |>
+parents_raw <- read_sav(file.path(data_path, "original_data.sav")) |>
   as_factor() |> 
   clean_names("snake") # removes all the capitalisation
 ```
@@ -152,7 +149,7 @@ parents_raw <- read_sav(paste0(data_path, "/original_data.sav")) |>
 
 Raw data is in a wide format - one respondent and their 6 vignette ratings per row. The analysis requires data in a long format - one vignette rating per row.
 
-A sizable chunk of respondents rated vignettes due to a fault in the randomisation procedure. Nevertheless, I decided to keep them, since randomisation with replacement shouldn't violate any of the assumptions behind this analysis, hence they bolster the overall sample size. Technically they rated "new vignettes" that differed in assigned names, but all the substantive component levels remained the same. It is possible to filter them out by simply adding "filter(stejne == 0)" to the pipe.
+A sizable chunk of respondents rated vignettes due to a fault in the randomisation procedure. Nevertheless, I decided to keep them, since randomisation with replacement shouldn't violate any of the assumptions behind this analysis, hence they bolster the overall sample size. Technically they rated "new vignettes" that differed in assigned names, but all the substantive component levels remained the same. It is possible to filter them out by simply adding `filter(stej == 0)` to the pipe.
 
 ```{r data-cleaning}
 #| message: false
@@ -193,15 +190,6 @@ parents_long <- parents_long |>
   
   # recodes and relevelling
   mutate(
-    # relevelling of response "should or shouldn't become parent"
-    q3rec = as_factor(case_when(
-    q3 %in% c("Určitě by se měli stát rodiči", "Spíše by se měli stát rodiči")~ 1,
-    q3 %in% c("Určitě by se neměli stát rodiči", "Spíše by se neměli stát rodiči")~ 0,
-    .default = NA)
-    ),
-    # changing reference category
-    vplat = relevel(vplat, 2),
-    
     # making the continuous response var continuous
     q1rec = case_when(
     q1 == "Zcela nepřipraven" ~ 0,
@@ -367,7 +355,7 @@ m_q1 <- lmer(
   data = parents_long
 )
 
-# base model - controlling for respondent level heterogeneity and respondennt characteristics, forms the base of comparisons with models with interactions
+# base model - controlling for respondent level heterogeneity and respondent characteristics, forms the base of comparisons with models with interactions
 
 m_base_mod <- lmer(
   q1rec ~ vpoh + vpar + vbyt + vskol_fix + vzam + vplat
@@ -490,7 +478,7 @@ I pull out the AMCEs from the models with the marginaleffects package. The code 
 # Get population level predictions
 m_q1_mfx <- avg_slopes(
   m_q1,
-  re.form = NULL # this option integrates info from offsets into predictions
+  re.form = NULL # include all random effects in predictions
 )
 m_q2_mfx <- avg_slopes(
   m_q2,
@@ -586,13 +574,8 @@ The plot below shows the coefficients of the 2 additive base models analysing th
 #| message: false
 #| code-fold: true
 
-# the actual plot
-m_q1q2_plotting |> 
-  
-  # this is here just to get the order of the wages correct on the plot
-  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |> 
-  
-  # Actual plotting hapenning here
+m_q1q2_plotting |>
+  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |>
   ggplot(
     aes(x = estimate, y = levels, color = model)
   ) +
@@ -602,10 +585,8 @@ m_q1q2_plotting |>
     labs(
       x = "Average change on an 11 point scale in comparison to\nreference category",
       y = NULL,
-      #title = "AMCEs derived from linear mixed effect model\nwith individual respondent random intercepts",
       color = "Dependent variable"
     ) +
-    scale_y_discrete(labels = c("nejsou manželé a svatbu v tuto chvíli neplánují" = "nejsou manželé")) +
     facet_col(facets = "variable_nice", scales = "free_y", space = "free") +
     plotting_variable_labs +
     theme(legend.position = "top") +
@@ -620,10 +601,10 @@ m_q1q2_plotting |>
         "How likely are they to have a child in the next 3 years?"))
 ```
 
-Finally I export the created plot to my Onedrive.
+Finally I export the created plot to the `plots/` folder.
 
 ```{r plot-export-additive}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
@@ -638,7 +619,7 @@ ggsave("q1_q2_additive_model_plot.png", bg = "white",
 ### Data wrangling
 
 ```{r MM-plot-data-cleaning}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
@@ -682,23 +663,17 @@ m_means_q1q2 <- add_rows(m_means_q1, m_means_q2, id = "model") |>
 
 m_means_q1q2 |> 
   
-  # this is here just to get the order of the wages correct on the plot
-  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |> 
-  
-  # Actual plotting hapenning here
+  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |>
   ggplot(
     aes(x = estimate, y = levels, color = model)
   ) +
     geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
                     position = position_dodge(width = 0.5)) +
-    plotting_variable_labs +
-    scale_color_discrete(labels = c("Muž" = "Man", "Žena" = "Woman")) +
     labs(
       x = "Marginal mean",
       y = NULL,
       title = "Marginal means",
-      subtitle = "(score ranging from 0 to 10)",
-      color = "Is the respondent a parent?"
+      subtitle = "(score ranging from 0 to 10)"
     ) +
     facet_col(facets = "variable_nice", scales = "free_y", space = "free") +
     plotting_variable_labs +
@@ -714,10 +689,10 @@ m_means_q1q2 |>
         "How likely are they to have a child in the next 3 years?"))
 ```
 
-And finally again exporting the output to my Onedrive.
+And finally again exporting the output to the `plots/` folder.
 
 ```{r plot-export-mm}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
@@ -732,7 +707,7 @@ ggsave("marginal_means_base.png", bg = "white",
 This code chunk should output an html table that will show you the results of the hypothesis tests
 
 ```{r html-table}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
@@ -752,10 +727,10 @@ model_contrasts |>
   row_spec(0, bold = TRUE)
 ```
 
-The code chunk below creates a standard APA table as a word document exported to my Onedrive.
+The code chunk below creates a standard APA table as a word document exported to the `tables/` folder.
 
 ```{r table-interaction-tests-export-to-word}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
@@ -782,13 +757,11 @@ model_contrasts |>
 ### Data wrangling
 
 ```{r data-wrangling-interaction-plot}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
-components <- c("vpoh", "vpar", "vbyt", "vskol_fix", "vzam", "vplat")
-
-sex_mfx <- m_interaction_woman |> 
+sex_mfx <- m_interaction_woman |>
   avg_slopes(
     variables = components,
     by = "vpoh",
@@ -813,8 +786,7 @@ m_interaction_woman_plotting <- model_variable_levels |>
     )
   ) |> 
   left_join(variable_lookup, by = join_by(variable)) |> 
-  mutate(across(c(levels, variable_nice), ~fct_inorder(.))) |> 
-  #filter(variable != "vpoh") |> 
+  mutate(across(c(levels, variable_nice), ~fct_inorder(.))) |>
   mutate(vpoh = case_when(
     is.na(reference_level) ~ "Muž",
     .default = vpoh
@@ -828,17 +800,13 @@ m_interaction_woman_plotting <- model_variable_levels |>
 ### Plotting
 
 ```{r plot-interaction}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
-interaction_woman_plot <- 
-m_interaction_woman_plotting |> 
-  
-  # this is here just to get the order of the wages correct on the plot
-  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |> 
-  
-  # Actual plotting hapenning here
+interaction_woman_plot <-
+m_interaction_woman_plotting |>
+  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |>
   ggplot(
     aes(x = estimate, y = levels, color = vpoh)
   ) +
@@ -848,7 +816,6 @@ m_interaction_woman_plotting |>
   labs(
     x = "Average change on an 11 point scale in comparison to\nreference category",
     y = NULL,
-    #title = "Perceptions of parental readiness by gender\n(interaction of vignette gender and components)",
     color = "Gender of vignette"
   ) +
   scale_color_manual(values = c("turquoise", "coral")) +
@@ -859,10 +826,10 @@ m_interaction_woman_plotting |>
   theme(legend.position = "top")
 ```
 
-In this block I export the result to my Onedrive.
+In this block I export the result to the `plots/` folder.
 
 ```{r export-interaction-plot}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
@@ -874,14 +841,14 @@ ggsave(plot = interaction_woman_plot,
 
 ## AMCE plot for Q1 interaction between components and income
 
+### Data wrangling
+
 ```{r data-wrangling-interaction-plot-income}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
-components <- c("vpoh", "vpar", "vbyt", "vskol_fix", "vzam", "vplat")
-
-income_mfx <- m_interaction_income |> 
+income_mfx <- m_interaction_income |>
   avg_slopes(
     variables = components,
     by = "vplat",
@@ -913,20 +880,16 @@ m_interaction_income_plotting <- model_variable_levels |>
   ))
 ```
 
-## Plotting
+### Plotting
 
 ```{r plot-interaction-income}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
-interaction_income_plot <- 
-m_interaction_income_plotting |> 
-  
-  # this is here just to get the order of the wages correct on the plot
-  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |> 
-  
-  # Actual plotting hapenning here
+interaction_income_plot <-
+m_interaction_income_plotting |>
+  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |>
   ggplot(
     aes(x = estimate, y = levels, color = vplat)
   ) +
@@ -946,10 +909,10 @@ m_interaction_income_plotting |>
 
 ```
 
-Export to onedrive
+Export to `plots/`
 
 ```{r export-interaction-plot-income}
-#| warnings: false
+#| warning: false
 #| message: false
 #| code-fold: true
 
@@ -959,12 +922,26 @@ ggsave(plot = interaction_income_plot,
        path = output_plots)
 ```
 
-## Combining the interaction plot
+## Combining the interaction plots
+
+The two interaction plots are combined side by side, sharing y-axis labels and a common axis title.
 
 ```{r patchwork}
-combined_plot <- interaction_woman_plot + interaction_income_plot  +
+#| warning: false
+#| message: false
+#| code-fold: true
+
+combined_plot <- interaction_woman_plot + interaction_income_plot +
   plot_layout(axes = "collect_y", axis_titles = "collect") &
   labs(color = NULL)
+
+combined_plot
+```
+
+```{r export-combined-plot}
+#| warning: false
+#| message: false
+#| code-fold: true
 
 ggsave(plot = combined_plot,
        "combined_interaction_AMCE.png", bg = "white",
