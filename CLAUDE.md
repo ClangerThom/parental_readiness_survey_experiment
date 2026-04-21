@@ -25,6 +25,16 @@ The user works in **Positron** (not RStudio). The `.Rproj` file is kept as a pro
 - `components` is defined once in `MM-plot-data-cleaning` and reused downstream
 - `sjmisc::add_rows()` is used instead of `dplyr::bind_rows()` to preserve haven labels
 
+## Exporting the presentation to PDF
+
+Use Decktape via npx — it renders each slide fully (including JS-based plots) before capturing:
+
+```
+npx decktape reveal "file:///C:\Users\Admin\Documents\github_projects\conjoint_analysis\presentation\presentation.html" "C:\Users\Admin\Documents\github_projects\conjoint_analysis\presentation\presentation.pdf" --size 1920x1080
+```
+
+Do not use headless Chrome/Edge `--print-to-pdf` directly — it prints before plots render.
+
 ## Models
 
 All models are `lmer` with respondent random intercepts. Hypothesis tests use Kenward-Rogers F-tests (`pbkrtest::KRmodcomp`) comparing each interaction model to `m_base_mod`. Only `m_interaction_woman` and `m_interaction_income` are plotted; the others (`m_interaction_r_sex`, `m_interaction_r_housing`, `m_interaction_r_parent`) appear only in the F-test table.
