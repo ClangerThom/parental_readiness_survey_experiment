@@ -1,0 +1,262 @@
+---
+title: "[Presentation Title]"
+subtitle: "[Subtitle]"
+author: "Thomas Philip Heyes"
+institute: "Department of Sociology, Faculty of Social Studies, Masaryk University"
+email: "thomas.philip.heyes@mail.muni.cz"
+date: "[Date]"
+footer-author: "Thomas Philip Heyes"
+footer-title: "[Short Title]"
+format:
+  muni-fss-revealjs:
+    self-contained: true
+execute:
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r setup}
+library(tidyverse)
+library(ggforce)
+library(patchwork)
+library(extrafont)
+library(kableExtra)
+
+knitr::opts_chunk$set(dev = "ragg_png")
+
+loadfonts(device = "win")
+load("../data/plot_objects.RData")
+
+theme_set(theme_nice())
+update_geom_defaults("text", list(family = "Jost", fontface = "plain"))
+update_geom_defaults("label", list(family = "Jost", fontface = "plain"))
+```
+
+## [Outline]
+
+[Placeholder]
+
+## [Motivation]
+
+[Placeholder]
+
+## [Research Questions and Hypotheses]
+
+[Placeholder]
+
+## [Study Design — Survey Experiment]
+
+[Placeholder]
+
+## [Sample]
+
+[Placeholder]
+
+## [Average Marginal Component Effects]
+
+:::: {.cols-3-7}
+
+::: {}
+[Key findings]
+
+- [Component A]
+- [Component B]
+- [Component C]
+:::
+
+::: {}
+```{r amce-plot}
+#| fig-height: 5.5
+#| fig-width: 4
+
+m_q1q2_plotting |>
+  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |>
+  ggplot(aes(x = estimate, y = levels, color = model)) +
+  geom_vline(xintercept = 0) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                  position = position_dodge(width = 0.5)) +
+  labs(x = "Average change on an 11 point scale\nin comparison to reference category",
+       y = NULL, color = "Dependent variable") +
+  facet_col(facets = "variable_nice", scales = "free_y", space = "free") +
+  plotting_variable_labs +
+  theme(legend.position = "top") +
+  guides(color = guide_legend(title = "Dependent variable", ncol = 1, byrow = TRUE)) +
+  scale_color_manual(
+    values = c("turquoise", "coral"),
+    breaks = c("How ready are they to have a child?",
+               "How likely are they to have a child in the next 3 years?"))
+```
+:::
+
+::::
+
+## [Marginal Means]
+
+:::: {.cols-3-7}
+
+::: {}
+[Key findings]
+
+- [Component A]
+- [Component B]
+- [Component C]
+:::
+
+::: {}
+```{r mm-plot}
+#| fig-height: 5.5
+#| fig-width: 4
+
+m_means_q1q2 |>
+  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |>
+  ggplot(aes(x = estimate, y = levels, color = model)) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                  position = position_dodge(width = 0.5)) +
+  labs(x = "Marginal mean (0–10 scale)", y = NULL) +
+  facet_col(facets = "variable_nice", scales = "free_y", space = "free") +
+  plotting_variable_labs +
+  theme(legend.position = "top") +
+  guides(color = guide_legend(title = "Dependent variable", ncol = 1, byrow = TRUE)) +
+  scale_color_manual(
+    values = c("turquoise", "coral"),
+    breaks = c("How ready are they to have a child?",
+               "How likely are they to have a child in the next 3 years?"))
+```
+:::
+
+::::
+
+## [Interaction Hypothesis Tests]
+
+```{r interaction-table}
+model_contrasts |>
+  mutate(
+    model = gsub("m_", "", model),
+    model = gsub("_", " ", model),
+    model = tools::toTitleCase(model),
+    stat = sprintf("%.2f", stat),
+    ndf = as.integer(ndf),
+    ddf = sprintf("%.2f", ddf),
+    p.value = ifelse(p.value < .001, "<.001", sprintf("%.3f", p.value))
+  ) |>
+  select(Model = model, F = stat, ndf, ddf, p = p.value) |>
+  kbl(format = "html", escape = FALSE) |>
+  kable_classic(full_width = FALSE, html_font = "Times New Roman") |>
+  row_spec(0, bold = TRUE)
+```
+
+## [Interaction with Vignette Gender]
+
+:::: {.cols-3-7}
+
+::: {}
+[Key findings]
+
+- [Finding A]
+- [Finding B]
+:::
+
+::: {}
+```{r interaction-woman-plot}
+#| fig-height: 6
+#| fig-width: 5
+
+m_interaction_woman_plotting |>
+  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |>
+  ggplot(aes(x = estimate, y = levels, color = vpoh)) +
+  geom_vline(xintercept = 0) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                  position = position_dodge(width = 0.5)) +
+  labs(x = "Average change on an 11 point scale\nin comparison to reference category",
+       y = NULL, color = "Gender of vignette") +
+  scale_color_manual(values = c("turquoise", "coral")) +
+  scale_x_continuous(breaks = seq(-1.5, 0.5, 0.5)) +
+  coord_cartesian(xlim = c(-1.75, 0.75)) +
+  facet_col(facets = "variable_nice", scales = "free_y", space = "free") +
+  plotting_variable_labs +
+  theme(legend.position = "top")
+```
+:::
+
+::::
+
+## [Interaction with Income Level]
+
+```{r combined-interaction-plot}
+#| fig-height: 5.5
+#| fig-width: 8
+#| fig-align: center
+
+interaction_woman_plot <- m_interaction_woman_plotting |>
+  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |>
+  ggplot(aes(x = estimate, y = levels, color = vpoh)) +
+  geom_vline(xintercept = 0) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                  position = position_dodge(width = 0.5)) +
+  labs(x = "Average change on an 11 point scale\nin comparison to reference category",
+       y = NULL, color = "Gender of vignette") +
+  scale_color_manual(values = c("turquoise", "coral")) +
+  scale_x_continuous(breaks = seq(-1.5, 0.5, 0.5)) +
+  coord_cartesian(xlim = c(-1.75, 0.75)) +
+  facet_col(facets = "variable_nice", scales = "free_y", space = "free") +
+  plotting_variable_labs +
+  theme(legend.position = "top")
+
+interaction_income_plot <- m_interaction_income_plotting |>
+  mutate(levels = fct_relevel(levels, "19.500 Kč", "39.000 Kč", "58.500 Kč")) |>
+  ggplot(aes(x = estimate, y = levels, color = vplat)) +
+  geom_vline(xintercept = 0) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                  position = position_dodge(width = 0.5)) +
+  labs(x = "Average change on an 11 point scale\nin comparison to reference category",
+       y = NULL, color = "Income level") +
+  scale_x_continuous(breaks = seq(-1.5, 0.5, 0.5)) +
+  coord_cartesian(xlim = c(-1.75, 0.75)) +
+  facet_col(facets = "variable_nice", scales = "free_y", space = "free") +
+  plotting_variable_labs +
+  theme(legend.position = "top")
+
+interaction_woman_plot + interaction_income_plot +
+  plot_layout(axes = "collect_y", axis_titles = "collect") &
+  labs(color = NULL)
+```
+
+## [Discussion]
+
+[Placeholder]
+
+## [Conclusions]
+
+[Placeholder]
+
+## Thank you
+
+:::: {.cols-2}
+
+::: {}
+**Thomas Philip Heyes**
+
+Department of Sociology
+Faculty of Social Studies
+Masaryk University
+Joštova 10, Brno
+
+thomas.philip.heyes@mail.muni.cz
+:::
+
+::: {}
+{{< fa brands orcid >}} [0009-0001-3816-3425](https://orcid.org/0009-0001-3816-3425)
+
+{{< fa brands bluesky >}} [thomasphilipheyes.bsky.social](https://bsky.app/profile/thomasphilipheyes.bsky.social)
+
+{{< fa brands github >}} [ClangerThom](https://github.com/ClangerThom)
+
+{{< fa brands linkedin >}} [thomas-philip-heyes](https://www.linkedin.com/in/thomas-philip-heyes-194079390/)
+
+:::
+
+::::
+
+::: {.outro}
+:::

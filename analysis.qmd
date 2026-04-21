@@ -948,3 +948,19 @@ ggsave(plot = combined_plot,
        width = 25, height = 17, units = "cm",
        path = output_plots)
 ```
+
+```{r save-plot-objects}
+#| include: false
+
+# Save wrangled plotting data and theme objects for use in presentation.qmd
+save(
+  m_q1q2_plotting,
+  m_means_q1q2,
+  model_contrasts,
+  m_interaction_woman_plotting,
+  m_interaction_income_plotting,
+  plotting_variable_labs,
+  theme_nice,
+  file = file.path(data_path, "plot_objects.RData")
+)
+```
